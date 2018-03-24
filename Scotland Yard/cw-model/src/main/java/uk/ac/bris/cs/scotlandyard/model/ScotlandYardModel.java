@@ -1,13 +1,15 @@
 package uk.ac.bris.cs.scotlandyard.model;
 
 import static java.util.Arrays.asList;
-import static java.util.Arrays.copyOf;
-import static java.util.Collections.*;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableCollection;
+import static java.util.Collections.unmodifiableList;
+import static java.util.Collections.unmodifiableSet;
 import static java.util.Objects.requireNonNull;
 import static uk.ac.bris.cs.scotlandyard.model.Colour.BLACK;
-import static uk.ac.bris.cs.scotlandyard.model.Ticket.*;
-
-import java.lang.management.OperatingSystemMXBean;
+import static uk.ac.bris.cs.scotlandyard.model.Ticket.DOUBLE;
+import static uk.ac.bris.cs.scotlandyard.model.Ticket.SECRET;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -16,22 +18,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
-
-import org.omg.CORBA.Current;
 import uk.ac.bris.cs.gamekit.graph.Edge;
 import uk.ac.bris.cs.gamekit.graph.Graph;
 import uk.ac.bris.cs.gamekit.graph.ImmutableGraph;
 
-import javax.security.auth.login.Configuration;
-import javax.swing.text.html.Option;
-
 // TODO implement all methods and pass all tests
-public class ScotlandYardModel implements ScotlandYardGame {
+public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 	List<Boolean> rounds;
 	private Graph<Integer, Transport> graph;
 	private ArrayList<PlayerConfiguration> configurations = new ArrayList<>();
-
+	private ArrayList<ScotlandYardPlayer> players = new ArrayList<>();
 
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
@@ -81,25 +78,54 @@ public class ScotlandYardModel implements ScotlandYardGame {
 			if (configuration.tickets.get(DOUBLE) > 0 || configuration.tickets.get(SECRET) > 0)
 				throw new IllegalArgumentException("Detectives has illegal ticket");
 		}
+
+		for (PlayerConfiguration player : configurations){
+		    ScotlandYardPlayer p = new ScotlandYardPlayer(
+		            player.player,
+                    player.colour,
+		            player.location,
+                    player.tickets
+            );
+		    players.add(p);
+        }
+
 	}
 
 	@Override
+    public void accept(Move move){
+
+    }
+
+    private Set<Move> validMove(Colour player) {
+        Set<Move> moves = new HashSet<>();
+        PassMove passMove = new PassMove(player);
+        moves.add(passMove);
+        return moves;
+    }
+
+	@Override
 	public void registerSpectator(Spectator spectator) {
-		// TODO
-		throw new RuntimeException("Implement me");
+
 	}
 
 	@Override
 	public void unregisterSpectator(Spectator spectator) {
-		// TODO
-		throw new RuntimeException("Implement me");
+
 	}
 
 	@Override
 	public void startRotate() {
-		// TODO
-		throw new RuntimeException("Implement me");
+        for (ScotlandYardPlayer player : players){
+            if (player.colour() == getCurrentPlayer() ){
+                player.player().makeMove(this, player.location(),validMove(player.colour()),this);
+            }
+        }
 	}
+
+
+    public void onRotationComplete(){
+
+    }
 
 	@Override
 	public Collection<Spectator> getSpectators() {
@@ -148,12 +174,6 @@ public class ScotlandYardModel implements ScotlandYardGame {
 		return false;
 	}
 
-	/**
-	 * The player whose turn it is. Should be {@link Colour#BLACK} at the start
-	 * of game
-	 *
-	 * @return The colour of the current player; never null
-	 */
 	@Override
 	public Colour getCurrentPlayer() {
 		return BLACK;

@@ -3,24 +3,14 @@ package uk.ac.bris.cs.scotlandyard.model;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
 import uk.ac.bris.cs.scotlandyard.harness.TestHarness;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.DEFAULT_REVEAL;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.bus;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.noTickets;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.ofRounds;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.pass;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.taxi;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.ticketCountIs;
-import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.x2;
+import static uk.ac.bris.cs.scotlandyard.auxiliary.TestGames.*;
 import static uk.ac.bris.cs.scotlandyard.harness.PlayerInteractions.player;
 import static uk.ac.bris.cs.scotlandyard.harness.Requirement.playerIsAt;
-import static uk.ac.bris.cs.scotlandyard.model.Colour.BLACK;
-import static uk.ac.bris.cs.scotlandyard.model.Colour.BLUE;
-import static uk.ac.bris.cs.scotlandyard.model.Colour.RED;
+import static uk.ac.bris.cs.scotlandyard.model.Colour.*;
 
 /**
  * Tests actual game logic between players for the model
