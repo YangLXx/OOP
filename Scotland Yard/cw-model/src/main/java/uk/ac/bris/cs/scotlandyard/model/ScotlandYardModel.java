@@ -8,8 +8,12 @@ import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.Objects.requireNonNull;
 import static uk.ac.bris.cs.scotlandyard.model.Colour.BLACK;
+import static uk.ac.bris.cs.scotlandyard.model.Colour.BLUE;
 import static uk.ac.bris.cs.scotlandyard.model.Ticket.DOUBLE;
 import static uk.ac.bris.cs.scotlandyard.model.Ticket.SECRET;
+import static uk.ac.bris.cs.scotlandyard.model.Ticket.fromTransport;
+
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,6 +33,8 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private Graph<Integer, Transport> graph;
 	private ArrayList<PlayerConfiguration> configurations = new ArrayList<>();
 	private ArrayList<ScotlandYardPlayer> players = new ArrayList<>();
+	private ArrayList<Colour> playerColours = new ArrayList<>();
+	private Integer playerMoveCount = 0;
 
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
@@ -87,6 +93,8 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
                     player.tickets
             );
 		    players.add(p);
+		    //For getCurrentplayer
+		    playerColours.add(player.colour);
         }
 
 	}
@@ -94,39 +102,54 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	@Override
     public void accept(Move move){
 
-    }
+	}
+
+
+	private Colour getPlayerOnNode (Integer node){
+		for (ScotlandYardPlayer p : players){
+			if (p.location() == node){
+				return p.colour();
+			}
+		}
+		return null;
+	}
 
     private Set<Move> validMove(Colour player) {
 
         Set<Move> moves = new HashSet<>();
-        int tryALocatoin;
-        boolean isBlocked = false;
+        Collection<Edge<Integer,Transport>> edges = new HashSet<>();
 
-        /*
-		for ( int i = 1; i <= 199; i++){
-			tryALocatoin = i;
-			// Check tryALocation is blocked by detectives or not
-			for (ScotlandYardPlayer p : players){
-				if (p.isDetective()){
-					if (p.location() == tryALocatoin) isBlocked = true;
+		for (ScotlandYardPlayer p : players) {
+			if (p.colour() == player && p.isDetective()) {
+				edges.addAll(graph.getEdgesFrom(graph.getNode(p.location())));
+				for (Edge<Integer, Transport> edge : edges) {
+					if (p.isDetective())
+						if ((getPlayerOnNode(edge.destination().value()) == null
+								|| getPlayerOnNode(edge.destination().value()) == BLACK)
+								&& p.tickets().get(Ticket.fromTransport(edge.data())) != 0)
+							moves.add(new TicketMove(player, Ticket.fromTransport(edge.data()), edge.destination().value()));
+					if (p.isMrX()){
+						if (getPlayerOnNode(edge.destination().value()) == null
+								&& p.tickets().get(Ticket.fromTransport(edge.data())) != 0)
+							moves.add(new TicketMove(player, Ticket.fromTransport(edge.data()), edge.destination().value()));
+						if (p.tickets().get(DOUBLE) != 0) {
+							Collection<Edge<Integer, Transport>> doubleEdges = new HashSet<>(graph.getEdgesFrom(edge.destination()));
+							for (Edge<Integer, Transport> doubleEdge : doubleEdges){
+								if (getPlayerOnNode(doubleEdge.destination().value()) == null){
+									moves.add(new DoubleMove(player,
+											Ticket.fromTransport(edge.data()),
+											edge.destination().value(),
+											Ticket.fromTransport(doubleEdge.data()),
+											doubleEdge.destination().value()));
+								}
+							}
+						}
+					}
+
 				}
 			}
-
-			if(isBlocked == false) {
-			    for (ScotlandYardPlayer p : players){
-			        if (p.colour() == player){
-			            TicketMove busmove = new TicketMove(player, BUS, tryALocatoin);
-
-                    }
-                }
-            }
-
-		}*/
-
-
-
-		 PassMove passMove = new PassMove(player);
-		 moves.add(passMove);
+		}
+		System.out.println(moves);
         return moves;
     }
 
@@ -143,15 +166,15 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	@Override
 	public void startRotate() {
         for (ScotlandYardPlayer player : players){
-            if (player.colour() == getCurrentPlayer() ){
-                player.player().makeMove(this, player.location(),validMove(player.colour()), requireNonNull(this));
-            }
+            if (player.colour() == getCurrentPlayer() ) {
+				player.player().makeMove(this, player.location(), validMove(player.colour()), this);
+				playerMoveCount++;
+			}
         }
 	}
 
 
     public void onRotationComplete(){
-
     }
 
 	@Override
@@ -203,7 +226,13 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 	@Override
 	public Colour getCurrentPlayer() {
-		return BLACK;
+		if (playerMoveCount <= configurations.size()) {
+			return playerColours.get(playerMoveCount);
+		}
+		else {
+			playerMoveCount = 0;
+			return BLACK;
+		}
 	}
 
 	@Override
