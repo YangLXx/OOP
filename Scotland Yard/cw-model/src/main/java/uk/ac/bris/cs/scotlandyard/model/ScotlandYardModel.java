@@ -9,9 +9,7 @@ import static java.util.Collections.unmodifiableSet;
 import static java.util.Objects.requireNonNull;
 import static uk.ac.bris.cs.scotlandyard.model.Colour.BLACK;
 import static uk.ac.bris.cs.scotlandyard.model.Colour.BLUE;
-import static uk.ac.bris.cs.scotlandyard.model.Ticket.DOUBLE;
-import static uk.ac.bris.cs.scotlandyard.model.Ticket.SECRET;
-import static uk.ac.bris.cs.scotlandyard.model.Ticket.fromTransport;
+import static uk.ac.bris.cs.scotlandyard.model.Ticket.*;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -120,22 +118,29 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
         Collection<Edge<Integer,Transport>> edges = new HashSet<>();
 
 		for (ScotlandYardPlayer p : players) {
-			if (p.colour() == player && p.isDetective()) {
+			if (p.colour() == player) {
 				edges.addAll(graph.getEdgesFrom(graph.getNode(p.location())));
 				for (Edge<Integer, Transport> edge : edges) {
-					if (p.isDetective())
+					if (p.isDetective()) {
 						if ((getPlayerOnNode(edge.destination().value()) == null
 								|| getPlayerOnNode(edge.destination().value()) == BLACK)
 								&& p.tickets().get(Ticket.fromTransport(edge.data())) != 0)
 							moves.add(new TicketMove(player, Ticket.fromTransport(edge.data()), edge.destination().value()));
+						else if (p.tickets().get(BUS) + p.tickets().get(TAXI) + p.tickets().get(UNDERGROUND) == 0) {
+							moves.add(new PassMove(player));
+							return moves;
+						}
+					}
 					if (p.isMrX()){
 						if (getPlayerOnNode(edge.destination().value()) == null
 								&& p.tickets().get(Ticket.fromTransport(edge.data())) != 0)
 							moves.add(new TicketMove(player, Ticket.fromTransport(edge.data()), edge.destination().value()));
-						if (p.tickets().get(DOUBLE) != 0) {
+						if (p.tickets().get(DOUBLE) != 0 &&
+								p.tickets().get(BUS) + p.tickets().get(TAXI) +
+										p.tickets().get(UNDERGROUND) + p.tickets().get(SECRET) >= 2) {
 							Collection<Edge<Integer, Transport>> doubleEdges = new HashSet<>(graph.getEdgesFrom(edge.destination()));
 							for (Edge<Integer, Transport> doubleEdge : doubleEdges){
-								if (getPlayerOnNode(doubleEdge.destination().value()) == null){
+								if (getPlayerOnNode(doubleEdge.destination().value()) == null && p.tickets().get(Ticket.fromTransport(doubleEdge.data())) != 0){
 									moves.add(new DoubleMove(player,
 											Ticket.fromTransport(edge.data()),
 											edge.destination().value(),
