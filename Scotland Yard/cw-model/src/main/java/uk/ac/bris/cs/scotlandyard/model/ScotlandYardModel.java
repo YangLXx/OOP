@@ -97,9 +97,36 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
     }
 
     private Set<Move> validMove(Colour player) {
+
         Set<Move> moves = new HashSet<>();
-        PassMove passMove = new PassMove(player);
-        moves.add(passMove);
+        int tryALocatoin;
+        boolean isBlocked = false;
+
+        /*
+		for ( int i = 1; i <= 199; i++){
+			tryALocatoin = i;
+			// Check tryALocation is blocked by detectives or not
+			for (ScotlandYardPlayer p : players){
+				if (p.isDetective()){
+					if (p.location() == tryALocatoin) isBlocked = true;
+				}
+			}
+
+			if(isBlocked == false) {
+			    for (ScotlandYardPlayer p : players){
+			        if (p.colour() == player){
+			            TicketMove busmove = new TicketMove(player, BUS, tryALocatoin);
+
+                    }
+                }
+            }
+
+		}*/
+
+
+
+		 PassMove passMove = new PassMove(player);
+		 moves.add(passMove);
         return moves;
     }
 
@@ -117,7 +144,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	public void startRotate() {
         for (ScotlandYardPlayer player : players){
             if (player.colour() == getCurrentPlayer() ){
-                player.player().makeMove(this, player.location(),validMove(player.colour()),this);
+                player.player().makeMove(this, player.location(),validMove(player.colour()), requireNonNull(this));
             }
         }
 	}
