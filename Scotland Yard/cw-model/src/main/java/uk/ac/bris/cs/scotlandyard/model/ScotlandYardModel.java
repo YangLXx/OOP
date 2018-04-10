@@ -112,7 +112,93 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		return null;
 	}
 
-    private Set<Move> validMove(Colour player) {
+
+	private Set<Move> validMove(ScotlandYardPlayer player) {
+		Set<Move> validMoves = new HashSet<>();
+		Collection<Edge<Integer, Transport>> edges = new HashSet<>(graph.getEdgesFrom(graph.getNode(player.location())));
+
+		if (player.isDetective()) {
+			for (Edge<Integer, Transport> edge : edges) {
+				if ((getPlayerOnNode(edge.destination().value()) == null
+						|| getPlayerOnNode(edge.destination().value()) == BLACK)
+						&& player.tickets().get(Ticket.fromTransport(edge.data())) != 0)
+					validMoves.add(new TicketMove(player.colour(), Ticket.fromTransport(edge.data()), edge.destination().value()));
+				else if (player.tickets().get(BUS) + player.tickets().get(TAXI) + player.tickets().get(UNDERGROUND) == 0) {
+					validMoves.add(new PassMove(player.colour()));
+					return validMoves;
+				}
+			}
+		}
+
+		if (player.isMrX()) {
+			for (Edge<Integer, Transport> edge : edges) {
+				if (getPlayerOnNode(edge.destination().value()) == null &&
+						player.tickets().get(Ticket.fromTransport(edge.data())) != 0) {
+					validMoves.add(new TicketMove(player.colour(), Ticket.fromTransport(edge.data()), edge.destination().value()));
+				}
+				if (getPlayerOnNode(edge.destination().value()) == null &&
+						player.tickets().get(SECRET) != 0) {
+					validMoves.add(new TicketMove(player.colour(), SECRET, edge.destination().value()));
+				}
+				if (player.tickets().get(DOUBLE) != 0 &&
+						player.tickets().get(BUS) + player.tickets().get(TAXI) + player.tickets().get(UNDERGROUND) + player.tickets().get(SECRET) >= 2) {
+					TicketMove firstMove;
+					TicketMove secondMove;
+					//Circumstance of firstMove not using SECRET ticket
+					if (getPlayerOnNode(edge.destination().value()) == null &&
+							player.tickets().get(Ticket.fromTransport(edge.data())) != 0) {
+						firstMove = new TicketMove(player.colour(), Ticket.fromTransport(edge.data()), edge.destination().value());
+						Collection<Edge<Integer, Transport>> doubleEdges = new HashSet<>(graph.getEdgesFrom(edge.destination()));
+						for (Edge<Integer, Transport> doubleEdge : doubleEdges){
+							if ((getPlayerOnNode(doubleEdge.destination().value()) == null ||
+									getPlayerOnNode(doubleEdge.destination().value()) == BLACK) &&
+									player.tickets().get(Ticket.fromTransport(doubleEdge.data())) != 0 &&
+									(!Ticket.fromTransport(edge.data()).equals(Ticket.fromTransport(doubleEdge.data())) ||
+											(Ticket.fromTransport(edge.data()).equals(Ticket.fromTransport(doubleEdge.data())) &&
+													player.tickets().get(Ticket.fromTransport(doubleEdge.data())) >= 2
+											))){
+								secondMove = new TicketMove(player.colour(), Ticket.fromTransport(doubleEdge.data()), doubleEdge.destination().value());
+								validMoves.add(new DoubleMove(player.colour(), firstMove, secondMove));
+							}
+							if ((getPlayerOnNode(doubleEdge.destination().value()) == null ||
+									getPlayerOnNode(doubleEdge.destination().value()) == BLACK) &&
+									player.tickets().get(SECRET) != 0 &&
+									!Transport.FERRY.equals(doubleEdge.data())) {
+								secondMove = new TicketMove(player.colour(), SECRET, doubleEdge.destination().value());
+								validMoves.add(new DoubleMove(player.colour(), firstMove, secondMove));
+							}
+						}
+					}
+					//Circumstance of first move using SECRET ticket
+					if (getPlayerOnNode(edge.destination().value()) == null &&
+							player.tickets().get(SECRET) != 0) {
+						firstMove = new TicketMove(player.colour(), SECRET, edge.destination().value());
+						Collection<Edge<Integer, Transport>> doubleEdges = new HashSet<>(graph.getEdgesFrom(edge.destination()));
+						for (Edge<Integer, Transport> doubleEdge : doubleEdges) {
+							if ((getPlayerOnNode(doubleEdge.destination().value()) == null ||
+									getPlayerOnNode(doubleEdge.destination().value()) == BLACK) &&
+									player.tickets().get(Ticket.fromTransport(doubleEdge.data())) != 0) {
+								secondMove = new TicketMove(player.colour(), Ticket.fromTransport(doubleEdge.data()), doubleEdge.destination().value());
+								validMoves.add(new DoubleMove(player.colour(), firstMove, secondMove));
+							}
+							if ((getPlayerOnNode(doubleEdge.destination().value()) == null ||
+									getPlayerOnNode(doubleEdge.destination().value()) == BLACK) &&
+									player.tickets().get(SECRET) != 0 &&
+									!Transport.FERRY.equals(doubleEdge.data())) {
+								secondMove = new TicketMove(player.colour(), SECRET, doubleEdge.destination().value());
+								validMoves.add(new DoubleMove(player.colour(), firstMove, secondMove));
+							}
+						}
+					}
+				}
+			}
+
+		}
+		return validMoves;
+	}
+
+
+    /*private Set<Move> validMove(Colour player) {
 
         Set<Move> moves = new HashSet<>();
         Collection<Edge<Integer,Transport>> edges = new HashSet<>();
@@ -156,7 +242,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		}
 		System.out.println(moves);
         return moves;
-    }
+    }*/
 
 	@Override
 	public void registerSpectator(Spectator spectator) {
@@ -172,7 +258,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	public void startRotate() {
         for (ScotlandYardPlayer player : players){
             if (player.colour() == getCurrentPlayer() ) {
-				player.player().makeMove(this, player.location(), validMove(player.colour()), this);
+				player.player().makeMove(this, player.location(), validMove(player), this);
 				playerMoveCount++;
 			}
         }
