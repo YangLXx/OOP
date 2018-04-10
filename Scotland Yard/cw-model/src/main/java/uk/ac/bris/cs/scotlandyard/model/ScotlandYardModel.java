@@ -33,6 +33,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private ArrayList<ScotlandYardPlayer> players = new ArrayList<>();
 	private ArrayList<Colour> playerColours = new ArrayList<>();
 	private Integer playerMoveCount = 0;
+	private Integer roundCounter = 0;
 
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
@@ -94,7 +95,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		    //For getCurrentplayer
 		    playerColours.add(player.colour);
         }
-
 	}
 
 	@Override
@@ -260,12 +260,16 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
             if (player.colour() == getCurrentPlayer() ) {
 				player.player().makeMove(this, player.location(), validMove(player), this);
 				playerMoveCount++;
+				if (playerMoveCount > configurations.size()) {
+					onRotationComplete();
+				}
 			}
         }
 	}
 
-
     public void onRotationComplete(){
+		playerMoveCount = 0;
+		roundCounter++;
     }
 
 	@Override
@@ -317,18 +321,12 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 	@Override
 	public Colour getCurrentPlayer() {
-		if (playerMoveCount <= configurations.size()) {
-			return playerColours.get(playerMoveCount);
-		}
-		else {
-			playerMoveCount = 0;
-			return BLACK;
-		}
+		return playerColours.get(playerMoveCount);
 	}
 
 	@Override
 	public int getCurrentRound() {
-		return NOT_STARTED;
+		return roundCounter;
 	}
 
 	@Override
