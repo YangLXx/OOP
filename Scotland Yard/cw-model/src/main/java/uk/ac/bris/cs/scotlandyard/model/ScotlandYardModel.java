@@ -24,8 +24,7 @@ import uk.ac.bris.cs.gamekit.graph.Edge;
 import uk.ac.bris.cs.gamekit.graph.Graph;
 import uk.ac.bris.cs.gamekit.graph.ImmutableGraph;
 
-// TODO implement all methods and pass all tests
-public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
+public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, MoveVisitor {
 
 	List<Boolean> rounds;
 	private Graph<Integer, Transport> graph;
@@ -33,7 +32,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private ArrayList<ScotlandYardPlayer> players = new ArrayList<>();
 	private ArrayList<Colour> playerColours = new ArrayList<>();
 	private Integer playerMoveCount = 0;
-	private Integer roundCounter = 0;
+	private Integer roundCounter = NOT_STARTED;
 
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
@@ -101,28 +100,42 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
     public void accept(Move move){
 	    move = requireNonNull(move);
 	    if (!validMove(move.colour()).contains(move)) throw new IllegalArgumentException("Invalid move");
-
-	    TicketMove ticketMove;
-	    DoubleMove doubleMove;
-	    for (ScotlandYardPlayer player : players) {
-            if (move.colour().isDetective() && !move.getClass().equals(PassMove.class)) {
-
-            }
-            if (move.colour().isMrX()) {
-                if (move.getClass().equals(TicketMove.class)) {
-
-
+	    else {
+            MoveVisitor ticketMoveVisitor = new MoveVisitor() {
+                @Override
+                public void visit(TicketMove move) {
+                    for (ScotlandYardPlayer player : players) {
+                        if (player.colour() == move.colour()) {
+                            player.tickets().replace(move.ticket(), player.tickets().get(move.ticket()) - 1);
+                            player.location(move.destination());
+                        }
+                    }
                 }
-                roundCounter++;
-                if (move.getClass().equals(DoubleMove.class)) {
+            };
+            MoveVisitor doubleMoveVisitor = new MoveVisitor() {
+                @Override
+                public void visit(DoubleMove move) {
+                    for (ScotlandYardPlayer player : players) {
+                        if (player.colour() == move.colour()) {
+                            player.tickets().replace(move.firstMove().ticket(), player.tickets().get(move.firstMove().ticket()) - 1);
+                            player.location(move.firstMove().destination());
+                            roundCounter++;
+                            player.tickets().replace(move.secondMove().ticket(), player.tickets().get(move.secondMove().ticket()) - 1);
+                            player.location(move.finalDestination());
+                        }
+                    }
+                }
+            };
+            for (ScotlandYardPlayer player : players) {
+                if (move.colour().isDetective() && !move.getClass().equals(PassMove.class))
+                    move.visit(ticketMoveVisitor);
+                if (move.colour().isMrX()) {
+                    if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
+                    if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
                     roundCounter++;
                 }
             }
         }
-
-
-
-
 	}
 
 
@@ -166,7 +179,8 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
                             validMoves.add(new TicketMove(p.colour(), SECRET, edge.destination().value()));
                         }
                         if (p.tickets().get(DOUBLE) != 0 &&
-                                p.tickets().get(BUS) + p.tickets().get(TAXI) + p.tickets().get(UNDERGROUND) + p.tickets().get(SECRET) >= 2) {
+                                p.tickets().get(BUS) + p.tickets().get(TAXI) + p.tickets().get(UNDERGROUND) + p.tickets().get(SECRET) >= 2 &&
+                                rounds.size() - roundCounter >= 2) {
                             TicketMove firstMove;
                             TicketMove secondMove;
                             //Circumstance of firstMove not using SECRET ticket
