@@ -138,6 +138,8 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
         }
 	}
 
+	
+
 
 	private Colour getPlayerOnNode (Integer node){
 		for (ScotlandYardPlayer p : players){
