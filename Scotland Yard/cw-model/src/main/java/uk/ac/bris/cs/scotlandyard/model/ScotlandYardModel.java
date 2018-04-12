@@ -24,13 +24,14 @@ import uk.ac.bris.cs.gamekit.graph.Edge;
 import uk.ac.bris.cs.gamekit.graph.Graph;
 import uk.ac.bris.cs.gamekit.graph.ImmutableGraph;
 
+import javax.security.auth.login.Configuration;
+
 public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, MoveVisitor {
 
 	List<Boolean> rounds;
 	private Graph<Integer, Transport> graph;
 	private ArrayList<PlayerConfiguration> configurations = new ArrayList<>();
 	private ArrayList<ScotlandYardPlayer> players = new ArrayList<>();
-	private ArrayList<Colour> playerColours = new ArrayList<>();
 	private Integer playerMoveCount = 0;
 	private Integer roundCounter = NOT_STARTED;
 
@@ -57,7 +58,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 			configurations.add(requireNonNull(configuration));
 		configurations.add(0,firstDetective);
 		configurations.add(0,mrX);
-
 		Set<Integer> set = new HashSet<>();
 		Set<Colour> colorset = new HashSet<>();
 		for (PlayerConfiguration configuration : configurations) {
@@ -83,6 +83,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 				throw new IllegalArgumentException("Detectives has illegal ticket");
 		}
 
+		// Copy data from PlayerConfiguration(default) to ScotlandYardPlayer
 		for (PlayerConfiguration player : configurations){
 		    ScotlandYardPlayer p = new ScotlandYardPlayer(
 		            player.player,
@@ -91,16 +92,16 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                     player.tickets
             );
 		    players.add(p);
-		    //For getCurrentplayer
-		    playerColours.add(player.colour);
         }
 	}
 
 	@Override
     public void accept(Move move){
+	    // Check the para move is null or not valid
 	    move = requireNonNull(move);
 	    if (!validMove(move.colour()).contains(move)) throw new IllegalArgumentException("Invalid move");
 	    else {
+	        //Override visit method for TicketMove from MoveVisitor interface
             MoveVisitor ticketMoveVisitor = new MoveVisitor() {
                 @Override
                 public void visit(TicketMove move) {
@@ -108,15 +109,20 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                         if (player.colour() == move.colour()) {
                             player.tickets().replace(move.ticket(), player.tickets().get(move.ticket()) - 1);
                             player.location(move.destination());
+                            if(player.isDetective()) {
+                                players.get(0).tickets().replace(move.ticket(), players.get(0).tickets().get(move.ticket()) + 1);
+                            }
                         }
                     }
                 }
             };
+            //Override visit method for DoubleMove from MoveVisitor interface
             MoveVisitor doubleMoveVisitor = new MoveVisitor() {
                 @Override
                 public void visit(DoubleMove move) {
                     for (ScotlandYardPlayer player : players) {
                         if (player.colour() == move.colour()) {
+                            player.tickets().replace(DOUBLE,player.tickets().get(DOUBLE) - 1);
                             player.tickets().replace(move.firstMove().ticket(), player.tickets().get(move.firstMove().ticket()) - 1);
                             player.location(move.firstMove().destination());
                             roundCounter++;
@@ -126,21 +132,22 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                     }
                 }
             };
+            // Execute the player logic
             for (ScotlandYardPlayer player : players) {
-                if (move.colour().isDetective() && !move.getClass().equals(PassMove.class))
-                    move.visit(ticketMoveVisitor);
-                if (move.colour().isMrX()) {
-                    if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
-                    if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
-                    roundCounter++;
+                if (player.colour() == move.colour()) {
+                    if (move.colour().isDetective() && !move.getClass().equals(PassMove.class))
+                        move.visit(ticketMoveVisitor);
+                    if (move.colour().isMrX()) {
+                        if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
+                        if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
+                        System.out.println(roundCounter);
+                    }
                 }
             }
         }
 	}
 
-	
-
-
+	// Get the colour of player on a node
 	private Colour getPlayerOnNode (Integer node){
 		for (ScotlandYardPlayer p : players){
 			if (p.location() == node){
@@ -151,6 +158,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	}
 
 
+	// Get the set of valid moves for the current player
 	private Set<Move> validMove(Colour player) {
 		Set<Move> validMoves = new HashSet<>();
 		for (ScotlandYardPlayer p : players){
@@ -163,19 +171,27 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                                 || getPlayerOnNode(edge.destination().value()) == BLACK)
                                 && p.tickets().get(Ticket.fromTransport(edge.data())) != 0)
                             validMoves.add(new TicketMove(p.colour(), Ticket.fromTransport(edge.data()), edge.destination().value()));
+                        // When a detective has no ticket, a PASSMOVE ticket should be added in the valid moves
                         else if (p.tickets().get(BUS) + p.tickets().get(TAXI) + p.tickets().get(UNDERGROUND) == 0) {
                             validMoves.add(new PassMove(p.colour()));
                             return validMoves;
                         }
                     }
+                    // When a detective has no edge to use his all tickets, a PASSMOVE ticket should be added in
+                    // valid moves
+                    if (validMoves.isEmpty()) {
+                        validMoves.add(new PassMove(p.colour()));
+                    }
                 }
 
                 if (player.isMrX()) {
                     for (Edge<Integer, Transport> edge : edges) {
+                        // When mrX can make a ticket move
                         if (getPlayerOnNode(edge.destination().value()) == null &&
                                 p.tickets().get(Ticket.fromTransport(edge.data())) != 0) {
                             validMoves.add(new TicketMove(p.colour(), Ticket.fromTransport(edge.data()), edge.destination().value()));
                         }
+                        // When mrX can make a secret move
                         if (getPlayerOnNode(edge.destination().value()) == null &&
                                 p.tickets().get(SECRET) != 0) {
                             validMoves.add(new TicketMove(p.colour(), SECRET, edge.destination().value()));
@@ -233,7 +249,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                             }
                         }
                     }
-
                 }
             }
         }
@@ -258,10 +273,10 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 				playerMoveCount++;
 			}
         }
+        playerMoveCount = 0;
 	}
 
     public void onRotationComplete(){
-		playerMoveCount = 0;
     }
 
 	@Override
@@ -286,11 +301,11 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 
 	@Override
 	public Optional<Integer> getPlayerLocation(Colour colour) {
-		for (PlayerConfiguration configuration : configurations) {
-			if (configuration.colour == colour) {
-				if (configuration.colour == BLACK) {
+		for (ScotlandYardPlayer player : players) {
+			if (player.colour() == colour) {
+				if (player.colour() == BLACK) {
 					return Optional.of(0);
-				}else return Optional.of(configuration.location);
+				}else return Optional.of(player.location());
 			}
 		}
 		return Optional.empty();
@@ -298,9 +313,9 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 
 	@Override
 	public Optional<Integer> getPlayerTickets(Colour colour, Ticket ticket) {
-		for (PlayerConfiguration configuration : configurations) {
-			if (configuration.colour == colour) {
-				return Optional.of(configuration.tickets.get(ticket));
+		for (ScotlandYardPlayer player : players) {
+			if (player.colour() == colour) {
+				return Optional.of(player.tickets().get(ticket));
 			}
 		}
 		return Optional.empty();
@@ -313,7 +328,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 
 	@Override
 	public Colour getCurrentPlayer() {
-		return playerColours.get(playerMoveCount);
+		return players.get(playerMoveCount).colour();
 	}
 
 	@Override
