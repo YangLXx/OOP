@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import uk.ac.bris.cs.gamekit.graph.Edge;
 import uk.ac.bris.cs.gamekit.graph.Graph;
 import uk.ac.bris.cs.gamekit.graph.ImmutableGraph;
@@ -140,7 +142,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                     if (move.colour().isMrX()) {
                         if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
                         if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
-                        System.out.println(roundCounter);
                     }
                 }
             }
@@ -267,6 +268,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 
 	@Override
 	public void startRotate() {
+		if (isGameOver()) throw new IllegalStateException("Game over!");
         for (ScotlandYardPlayer player : players){
             if (player.colour() == getCurrentPlayer() ) {
 				player.player().makeMove(this, player.location(), validMove(player.colour()), this);
@@ -323,7 +325,16 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 
 	@Override
 	public boolean isGameOver() {
-		return false;
+		Boolean allDetectivesCannotMove = true;
+		for (ScotlandYardPlayer p : players) {
+			if (p.colour().isDetective()) {
+				Set<Move> passMove= new HashSet<>();
+				passMove.add(new PassMove(p.colour()));
+				allDetectivesCannotMove = allDetectivesCannotMove && validMove(p.colour()).equals(passMove);
+				if (p.location() == players.get(0).location()) return true;
+			} else if (validMove(BLACK).isEmpty()) return true;
+		}
+		return allDetectivesCannotMove;
 	}
 
 	@Override
