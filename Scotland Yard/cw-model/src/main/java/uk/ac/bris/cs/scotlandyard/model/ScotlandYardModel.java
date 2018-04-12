@@ -171,13 +171,13 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                                 || getPlayerOnNode(edge.destination().value()) == BLACK)
                                 && p.tickets().get(Ticket.fromTransport(edge.data())) != 0)
                             validMoves.add(new TicketMove(p.colour(), Ticket.fromTransport(edge.data()), edge.destination().value()));
-                        // When a detective has no ticket, a PASSMOVE ticket should be added in the valid moves
+                        // When a detective has no ticket, a Pass move ticket should be added in the valid moves
                         else if (p.tickets().get(BUS) + p.tickets().get(TAXI) + p.tickets().get(UNDERGROUND) == 0) {
                             validMoves.add(new PassMove(p.colour()));
                             return validMoves;
                         }
                     }
-                    // When a detective has no edge to use his all tickets, a PASSMOVE ticket should be added in
+                    // When a detective has no edge to use his all tickets, a Pass move ticket should be added in
                     // valid moves
                     if (validMoves.isEmpty()) {
                         validMoves.add(new PassMove(p.colour()));
