@@ -19,9 +19,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import uk.ac.bris.cs.gamekit.graph.Edge;
 import uk.ac.bris.cs.gamekit.graph.Graph;
 import uk.ac.bris.cs.gamekit.graph.ImmutableGraph;
@@ -36,6 +36,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	private ArrayList<ScotlandYardPlayer> players = new ArrayList<>();
 	private Integer playerMoveCount = 0;
 	private Integer roundCounter = NOT_STARTED;
+	private List<Spectator> spectators = new CopyOnWriteArrayList<>();
 
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
@@ -145,6 +146,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                     }
                 }
             }
+			for (Spectator spectator : spectators) spectator.onMoveMade(this, move);
         }
 	}
 
@@ -258,33 +260,39 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 
 	@Override
 	public void registerSpectator(Spectator spectator) {
-
+		requireNonNull(spectator);
+		if (spectators.contains(spectator)) throw new IllegalArgumentException();
+		spectators.add(spectator);
 	}
 
 	@Override
 	public void unregisterSpectator(Spectator spectator) {
-
+		requireNonNull(spectator);
+		if (!spectators.contains(spectator)) throw new IllegalArgumentException();
+		spectators.remove(spectator);
 	}
 
 	@Override
 	public void startRotate() {
-		if (isGameOver()) throw new IllegalStateException("Game over!");
+		if (isGameOver() && getCurrentRound() == NOT_STARTED) throw new IllegalStateException("Game over!");
         for (ScotlandYardPlayer player : players){
             if (player.colour() == getCurrentPlayer() ) {
 				player.player().makeMove(this, player.location(), validMove(player.colour()), this);
 				playerMoveCount++;
+				if (isGameOver()) for (Spectator spectator : spectators) spectator.onGameOver(this, getWinningPlayers());
 			}
         }
         playerMoveCount = 0;
+        onRotationComplete();
 	}
 
     public void onRotationComplete(){
+		for (Spectator spectator : spectators) spectator.onRotationComplete(this);
     }
 
 	@Override
 	public Collection<Spectator> getSpectators() {
-		// TODO
-		throw new RuntimeException("Implement me");
+		return Collections.unmodifiableList(spectators);
 	}
 
 	@Override
