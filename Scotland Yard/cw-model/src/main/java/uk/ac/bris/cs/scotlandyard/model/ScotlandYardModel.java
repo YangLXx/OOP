@@ -275,11 +275,17 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	@Override
 	public void startRotate() {
 		if (isGameOver() && getCurrentRound() == NOT_STARTED) throw new IllegalStateException("Game over!");
+		players.get(0).player().makeMove(this, players.get(0).location(), validMove(players.get(0).colour()), this);
+		roundCounter ++;
+		playerMoveCount ++;
+		for (Spectator spectator : spectators) spectator.onRoundStarted(this, getCurrentRound());
         for (ScotlandYardPlayer player : players){
-            if (player.colour() == getCurrentPlayer() ) {
-				player.player().makeMove(this, player.location(), validMove(player.colour()), this);
-				playerMoveCount++;
-				if (isGameOver()) for (Spectator spectator : spectators) spectator.onGameOver(this, getWinningPlayers());
+        	if (player.colour().isDetective()) {
+				if (player.colour() == getCurrentPlayer()) {
+					player.player().makeMove(this, player.location(), validMove(player.colour()), this);
+					playerMoveCount++;
+					if (isGameOver()) for (Spectator spectator : spectators) spectator.onGameOver(this, getWinningPlayers());
+				}
 			}
         }
         playerMoveCount = 0;
