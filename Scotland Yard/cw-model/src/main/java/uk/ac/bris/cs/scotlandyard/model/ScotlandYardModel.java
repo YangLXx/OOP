@@ -112,12 +112,13 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                 public void visit(TicketMove move) {
                     for (ScotlandYardPlayer player : players) {
                         if (player.colour() == move.colour()) {
-                            roundCounter ++;
+                            // if (move.colour().isMrX()) roundCounter ++;
                             player.tickets().replace(move.ticket(), player.tickets().get(move.ticket()) - 1);
                             player.location(move.destination());
                             if(player.isDetective()) {
                                 players.get(0).tickets().replace(move.ticket(), players.get(0).tickets().get(move.ticket()) + 1);
                             }
+                            playerMoveCount ++;
                             // Round = 1, CurrentPlayer = BLUE
                             onRoundStarted();
                             onMoveMade();
@@ -132,6 +133,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                     for (ScotlandYardPlayer player : players) {
                         if (player.colour() == move.colour()) {
                             player.tickets().replace(DOUBLE,player.tickets().get(DOUBLE) - 1);
+                            playerMoveCount ++;
                             // Round = 0, CurrentPlayer = BLUE
                             onMoveMade();
 
@@ -156,11 +158,12 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
             };
             // Execute the player logic
             for (ScotlandYardPlayer player : players) {
-                playerMoveCount ++;
-                currentMove = move;
                 if (player.colour() == move.colour()) {
-                    if (move.colour().isDetective() && !move.getClass().equals(PassMove.class))
-                        move.visit(ticketMoveVisitor);
+                    currentMove = move;
+                    if (move.colour().isDetective()) {
+                        if (move.getClass().equals(PassMove.class)) playerMoveCount ++;
+                        else move.visit(ticketMoveVisitor);
+                    }
                     if (move.colour().isMrX()) {
                         if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
                         if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
@@ -221,7 +224,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                         }
                         if (p.tickets().get(DOUBLE) != 0 &&
                                 p.tickets().get(BUS) + p.tickets().get(TAXI) + p.tickets().get(UNDERGROUND) + p.tickets().get(SECRET) >= 2 &&
-                                rounds.size() - roundCounter >= 2) {
+                                rounds.size() - getCurrentRound() >= 2) {
                             TicketMove firstMove;
                             TicketMove secondMove;
                             //Circumstance of firstMove not using SECRET ticket
@@ -296,7 +299,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	public void startRotate() {
 		if (isGameOver() && getCurrentRound() == NOT_STARTED) throw new IllegalStateException("Game over!");
 		players.get(0).player().makeMove(this, players.get(0).location(), validMove(players.get(0).colour()), this);
-		roundCounter ++;
         for (ScotlandYardPlayer player : players){
         	if (player.colour().isDetective()) {
 				if (player.colour() == getCurrentPlayer()) {
