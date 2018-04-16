@@ -129,6 +129,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                     }
                 }
             };
+            
             //Override visit method for DoubleMove from MoveVisitor interface
             MoveVisitor doubleMoveVisitor = new MoveVisitor() {
                 @Override
