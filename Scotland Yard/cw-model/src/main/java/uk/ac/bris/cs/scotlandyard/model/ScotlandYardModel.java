@@ -170,6 +170,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                         if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
                         if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
                     }
+                    if(players.size() <= playerMoveCount) playerMoveCount = 0;
                 }
             }
         }
@@ -305,7 +306,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
         	if (player.colour().isDetective()) {
 				if (player.colour() == getCurrentPlayer()) {
 					player.player().makeMove(this, player.location(), validMove(player.colour()), this);
-					if(players.size() <= playerMoveCount) playerMoveCount = 0;
 					if (isGameOver()) for (Spectator spectator : spectators) spectator.onGameOver(this, getWinningPlayers());
 				}
 			}
