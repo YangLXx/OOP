@@ -374,9 +374,14 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                 	for (ScotlandYardPlayer player : players) {
                 	if (player.colour().isDetective()) winningPlayers.add(player.colour());
 					};
-            } else if (validMove(BLACK).isEmpty() && getCurrentPlayer() == BLACK) winningPlayers.add(p.colour());
+            } else if (validMove(BLACK).isEmpty() && getCurrentPlayer() == BLACK)
+				for (ScotlandYardPlayer player : players) {
+					if (player.colour().isDetective()) winningPlayers.add(player.colour());
+				};
         }
-        if (allDetectivesCannotMove) for (ScotlandYardPlayer player : players) winningPlayers.add(player.colour());
+        if (allDetectivesCannotMove)
+        	for (ScotlandYardPlayer player : players)
+        		if (player.colour().isDetective()) winningPlayers.add(player.colour());
         return Collections.unmodifiableSet(winningPlayers);
 	}
 
