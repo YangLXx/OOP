@@ -39,6 +39,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	private List<Spectator> spectators = new CopyOnWriteArrayList<>();
 	private Move currentMove;
 	private int mrXLocation = 0;
+	private int doubleMoveUsed = 0;
 
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
@@ -145,6 +146,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                 	for (ScotlandYardPlayer player : players) {
                 		if (player.colour() == move.colour()) {
 							player.tickets().replace(DOUBLE, player.tickets().get(DOUBLE) - 1);
+							doubleMoveUsed ++;
 							if (getRounds().get(getCurrentRound())) firstDestination = move.firstMove().destination();
 							else firstDestination = mrXLocation;
 							if (getRounds().get(getCurrentRound() + 1)) secondDestination = move.secondMove().destination();
@@ -324,7 +326,10 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
         	if (player.colour().isDetective()) {
 				if (player.colour() == getCurrentPlayer()) {
 					player.player().makeMove(this, player.location(), validMove(player.colour()), this);
-					if (isGameOver()) for (Spectator spectator : spectators) spectator.onGameOver(this, getWinningPlayers());
+					if (isGameOver()) {
+						for (Spectator spectator : spectators) spectator.onGameOver(this, getWinningPlayers());
+						break;
+					}
 				}
 			}
         }
@@ -361,14 +366,17 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	public Set<Colour> getWinningPlayers() {
 	    Set<Colour> winningPlayers = new HashSet<>();
         Boolean allDetectivesCannotMove = true;
-        if (roundCounter >= rounds.size()) winningPlayers.add(BLACK);
+        if (roundCounter >= rounds.size() - doubleMoveUsed) winningPlayers.add(BLACK);
         for (ScotlandYardPlayer p : players) {
             if (p.colour().isDetective()) {
                 Set<Move> passMove= new HashSet<>();
                 passMove.add(new PassMove(p.colour()));
                 allDetectivesCannotMove = allDetectivesCannotMove && validMove(p.colour()).equals(passMove);
-                if (p.location() == players.get(0).location()) winningPlayers.add(p.colour());
-            } else if (validMove(BLACK).isEmpty()) winningPlayers.add(p.colour());
+                if (p.location() == players.get(0).location())
+                	for (ScotlandYardPlayer player : players) {
+                	if (player.colour().isDetective()) winningPlayers.add(player.colour());
+					};
+            } else if (validMove(BLACK).isEmpty() && getCurrentPlayer() == BLACK) winningPlayers.add(p.colour());
         }
         if (allDetectivesCannotMove) for (ScotlandYardPlayer player : players) winningPlayers.add(player.colour());
         return Collections.unmodifiableSet(winningPlayers);
@@ -401,14 +409,14 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	@Override
 	public boolean isGameOver() {
 		Boolean allDetectivesCannotMove = true;
-		if (roundCounter >= rounds.size()) return true;
+		if (roundCounter >= rounds.size() - doubleMoveUsed) return true;
 		for (ScotlandYardPlayer p : players) {
 			if (p.colour().isDetective()) {
 				Set<Move> passMove= new HashSet<>();
 				passMove.add(new PassMove(p.colour()));
 				allDetectivesCannotMove = allDetectivesCannotMove && validMove(p.colour()).equals(passMove);
 				if (p.location() == players.get(0).location()) return true;
-			} else if (validMove(BLACK).isEmpty()) return true;
+			} else if (validMove(BLACK).isEmpty() && getCurrentPlayer() == BLACK) return true;
 		}
 		return allDetectivesCannotMove;
 	}
