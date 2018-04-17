@@ -193,17 +193,14 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 					}
 				}
 			}
+			if (isGameOver() && !onGameOverCalled) onGameOver();
 			if (playerMoveCount == 0 && !isGameOver()) onRotationComplete();
 		}
 
 		if (playerMoveCount != 0) {
 	    	for (ScotlandYardPlayer player : players) {
-	    		if (player.colour() == getCurrentPlayer()) {
+	    		if (player.colour() == getCurrentPlayer() && !onGameOverCalled) {
 	    			player.player().makeMove(this, player.location(), validMove(player.colour()), this);
-	    			if (isGameOver() && !onGameOverCalled) {
-	    				onGameOver();
-	    				break;
-	    			}
 	    		}
 	    	}
 	    }
