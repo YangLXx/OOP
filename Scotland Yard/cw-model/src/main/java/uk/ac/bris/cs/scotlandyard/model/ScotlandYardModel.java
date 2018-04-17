@@ -39,6 +39,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	private List<Spectator> spectators = new CopyOnWriteArrayList<>();
 	private Move currentMove;
 	private int mrXLocation = 0;
+	private boolean onGameOverCalled = false;
 
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
@@ -106,53 +107,54 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	    move = requireNonNull(move);
 	    if (!validMove(move.colour()).contains(move)) throw new IllegalArgumentException("Invalid move");
 	    else {
-	        //Override visit method for TicketMove from MoveVisitor interface
-            MoveVisitor ticketMoveVisitor = new MoveVisitor() {
-                @Override
-                public void visit(TicketMove move) {
-                	currentMove = move;
-                	Integer destination;
-                    for (ScotlandYardPlayer player : players) {
-                        if (player.colour() == move.colour()) {
-                            player.tickets().replace(move.ticket(), player.tickets().get(move.ticket()) - 1);
-                            player.location(move.destination());
+			//Override visit method for TicketMove from MoveVisitor interface
+			MoveVisitor ticketMoveVisitor = new MoveVisitor() {
+				@Override
+				public void visit(TicketMove move) {
+					currentMove = move;
+					Integer destination;
+					for (ScotlandYardPlayer player : players) {
+						if (player.colour() == move.colour()) {
+							player.tickets().replace(move.ticket(), player.tickets().get(move.ticket()) - 1);
+							player.location(move.destination());
 							if (move.colour().isMrX()) {
-                                if (getRounds().get(getCurrentRound())) destination = move.destination();
-                                else destination = mrXLocation;
-                                currentMove = new TicketMove(move.colour(), move.ticket(), destination);
+								if (getRounds().get(getCurrentRound())) destination = move.destination();
+								else destination = mrXLocation;
+								currentMove = new TicketMove(move.colour(), move.ticket(), destination);
 								roundCounter++;
 							}
-                            if(player.isDetective()) {
-                                players.get(0).tickets().replace(move.ticket(), players.get(0).tickets().get(move.ticket()) + 1);
-                                currentMove = move;
-                            }
-                            // Round = 1, CurrentPlayer = BLUE
-							playerMoveCount ++;
-                            if (players.size() <= playerMoveCount) playerMoveCount = 0;
+							if (player.isDetective()) {
+								players.get(0).tickets().replace(move.ticket(), players.get(0).tickets().get(move.ticket()) + 1);
+								currentMove = move;
+							}
+							// Round = 1, CurrentPlayer = BLUE
+							playerMoveCount++;
+							if (players.size() <= playerMoveCount) playerMoveCount = 0;
 							if (move.colour().isMrX()) onRoundStarted();
-                            onMoveMade();
-                        }
-                    }
-                }
-            };
-            
-            //Override visit method for DoubleMove from MoveVisitor interface
-            MoveVisitor doubleMoveVisitor = new MoveVisitor() {
-                @Override
-                public void visit(DoubleMove move) {
-                	Integer firstDestination;
-                	Integer secondDestination;
-                	for (ScotlandYardPlayer player : players) {
-                		if (player.colour() == move.colour()) {
+							onMoveMade();
+						}
+					}
+				}
+			};
+
+			//Override visit method for DoubleMove from MoveVisitor interface
+			MoveVisitor doubleMoveVisitor = new MoveVisitor() {
+				@Override
+				public void visit(DoubleMove move) {
+					Integer firstDestination;
+					Integer secondDestination;
+					for (ScotlandYardPlayer player : players) {
+						if (player.colour() == move.colour()) {
 							player.tickets().replace(DOUBLE, player.tickets().get(DOUBLE) - 1);
 							if (getRounds().get(getCurrentRound())) firstDestination = move.firstMove().destination();
 							else firstDestination = mrXLocation;
-							if (getRounds().get(getCurrentRound() + 1)) secondDestination = move.secondMove().destination();
+							if (getRounds().get(getCurrentRound() + 1))
+								secondDestination = move.secondMove().destination();
 							else secondDestination = firstDestination;
 							currentMove = new DoubleMove(player.colour(), move.firstMove().ticket(), firstDestination, move.secondMove().ticket(), secondDestination);
 							// Round = 0, CurrentPlayer = BLUE
 							playerMoveCount++;
-                            if (players.size() <= playerMoveCount) playerMoveCount = 0;
+							if (players.size() <= playerMoveCount) playerMoveCount = 0;
 							onMoveMade();
 
 							player.tickets().replace(move.firstMove().ticket(), player.tickets().get(move.firstMove().ticket()) - 1);
@@ -172,31 +174,48 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 							onMoveMade();
 						}
 					}
-                }
-            };
-            // Execute the player logic
-            for (ScotlandYardPlayer player : players) {
-                if (player.colour() == move.colour()) {
-                    if (move.colour().isDetective()) {
-                    	if (move.getClass().equals(PassMove.class)) {
-                            currentMove = move;
-                    	    playerMoveCount ++;
-                            if (players.size() <= playerMoveCount) playerMoveCount = 0;
-                            onMoveMade();
-                        }
-                    	else move.visit(ticketMoveVisitor);
+				}
+			};
+			// Execute the player logic
+			for (ScotlandYardPlayer player : players) {
+				if (player.colour() == move.colour()) {
+					if (move.colour().isDetective()) {
+						if (move.getClass().equals(PassMove.class)) {
+							currentMove = move;
+							playerMoveCount++;
+							if (players.size() <= playerMoveCount) playerMoveCount = 0;
+							onMoveMade();
+						} else move.visit(ticketMoveVisitor);
 					}
-                    if (move.colour().isMrX()) {
-                        if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
-                        if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
-                    }
-                }
-            }
-        }
+					if (move.colour().isMrX()) {
+						if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
+						if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
+					}
+				}
+			}
+			if (playerMoveCount == 0 && !isGameOver()) onRotationComplete();
+		}
+
+		if (playerMoveCount != 0) {
+	    	for (ScotlandYardPlayer player : players) {
+	    		if (player.colour() == getCurrentPlayer()) {
+	    			player.player().makeMove(this, player.location(), validMove(player.colour()), this);
+	    			if (isGameOver() && !onGameOverCalled) {
+	    				onGameOver();
+	    				break;
+	    			}
+	    		}
+	    	}
+	    }
+	}
+
+	private void onGameOver() {
+		onGameOverCalled = true;
+		spectators.forEach(spectator -> spectator.onGameOver(this, getWinningPlayers()));
 	}
 
 	// Get the colour of player on a node
-	private Colour getPlayerOnNode (Integer node){
+	private Colour getPlayerOnNode(Integer node){
 		for (ScotlandYardPlayer p : players){
 			if (p.location() == node){
 				return p.colour();
@@ -320,7 +339,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 	public void startRotate() {
 		if (isGameOver() && getCurrentRound() == NOT_STARTED) throw new IllegalStateException("Game over!");
 		players.get(0).player().makeMove(this, players.get(0).location(), validMove(players.get(0).colour()), this);
-        for (ScotlandYardPlayer player : players){
+        /*for (ScotlandYardPlayer player : players){
         	if (player.colour().isDetective()) {
 				if (player.colour() == getCurrentPlayer()) {
 					player.player().makeMove(this, player.location(), validMove(player.colour()), this);
@@ -330,12 +349,11 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
 					}
 				}
 			}
-        }
-        if (playerMoveCount == 0 && !isGameOver()) onRotationComplete();
+        }*/
 	}
 
 	public void onMoveMade(){
-	    for (Spectator spectator : spectators) spectator.onMoveMade(this, currentMove);
+		spectators.forEach(spectator -> spectator.onMoveMade(this, currentMove));
     }
 
     public void onRoundStarted(){
@@ -343,7 +361,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
     }
 
     public void onRotationComplete(){
-		for (Spectator spectator : spectators) spectator.onRotationComplete(this);
+		spectators.forEach(spectator -> spectator.onRotationComplete(this));
     }
 
 	@Override
@@ -370,14 +388,16 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move>, Move
                 Set<Move> passMove= new HashSet<>();
                 passMove.add(new PassMove(p.colour()));
                 allDetectivesCannotMove = allDetectivesCannotMove && validMove(p.colour()).equals(passMove);
-                if (p.location() == players.get(0).location())
-                	for (ScotlandYardPlayer player : players) {
-                	if (player.colour().isDetective()) winningPlayers.add(player.colour());
-					};
-            } else if (validMove(BLACK).isEmpty() && getCurrentPlayer() == BLACK)
+                if (p.location() == players.get(0).location()) {
+					for (ScotlandYardPlayer player : players) {
+						if (player.colour().isDetective()) winningPlayers.add(player.colour());
+					}
+				}
+            } else if (validMove(BLACK).isEmpty() && getCurrentPlayer() == BLACK) {
 				for (ScotlandYardPlayer player : players) {
 					if (player.colour().isDetective()) winningPlayers.add(player.colour());
-				};
+				}
+			}
         }
         if (allDetectivesCannotMove)
         	for (ScotlandYardPlayer player : players)
