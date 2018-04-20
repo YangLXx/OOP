@@ -3,62 +3,49 @@ package uk.ac.bris.cs.scotlandyard.ui.ai;
 import java.util.*;
 import java.util.function.Consumer;
 
+import uk.ac.bris.cs.gamekit.graph.Graph;
+import uk.ac.bris.cs.gamekit.graph.Node;
 import uk.ac.bris.cs.scotlandyard.ai.ManagedAI;
 import uk.ac.bris.cs.scotlandyard.ai.PlayerFactory;
-import uk.ac.bris.cs.scotlandyard.model.Colour;
-import uk.ac.bris.cs.scotlandyard.model.Move;
-import uk.ac.bris.cs.scotlandyard.model.Player;
-import uk.ac.bris.cs.scotlandyard.model.ScotlandYardView;
+import uk.ac.bris.cs.scotlandyard.model.*;
 
-// TODO name the AI
-@ManagedAI("For Losers")
+
+@ManagedAI("Easy")
 public class MyAI implements PlayerFactory {
 
-	// TODO create a new player here
 	@Override
 	public Player createPlayer(Colour colour) {
 		return new MyPlayer();
 	}
 
-	// TODO A sample player that selects a random move
-	/*
-	private static class MyPlayer implements Player {
-
-		private final Random random = new Random();
-
-		@Override
-		public void makeMove(ScotlandYardView view, int location, Set<Move> moves,
-				Consumer<Move> callback) {
-			// TODO do something interesting here; find the best move
-			// picks a random move
-			callback.accept(new ArrayList<>(moves).get(random.nextInt(moves.size())));
-
-		}
-	}
-	*/
-
 	private static class MyPlayer implements Player{
-
-		private int Dijkstras (ScotlandYardView view, Move move, Colour targetDetective){
-
+		private int Dijkstras (ScotlandYardView view, int destination, Colour targetDetective){
+			Graph<Integer, Transport> graph = view.getGraph();
+			HashMap<Node<Integer>, Integer> steps = new HashMap<>();
+			
+			return 0;
 		}
 
-		private int leastSteps (ScotlandYardView view, Move move) {
 
+
+
+		private Map<Move, Integer> leastSteps (ScotlandYardView view, Move move) {
+ 			Map<Move, Integer> leastSteps = new HashMap<>();
+ 			return leastSteps;
 		}
 
 		private int score (ScotlandYardView view, Move move){
-			int leastSteps = leastSteps(view, move);
-			int edgesOfDestination;
+			int furtherEdgesScore;
 			boolean thisRound = view.getRounds().get(view.getCurrentRound());
 			boolean nextRound = view.getRounds().get(view.getCurrentRound() + 1);
 			//Give the formula of score
 			//int score =...
-			return score;
+			return 0;
 		}
 
 		private ArrayList<Move> pickBestMoves (Map<Move, Integer> moveScores){
-
+			ArrayList<Move> bestMoves = new ArrayList<>();
+			return bestMoves;
 		}
 
 		@Override
