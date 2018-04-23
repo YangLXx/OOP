@@ -27,6 +27,7 @@ public class MyAI implements PlayerFactory {
 		int moveDestination;
 		int firstMoveDestination;
 		Map<Move, Integer> ticketMoveScores = new HashMap<>();
+		Map<Move, Integer> doubleMoveScores = new HashMap<>();
 
 		// Copy the number of remained tickets from ScotlandYardView to a new Map<Ticket, Integer>
 		// for counting the remaining tickets in searching of least steps
