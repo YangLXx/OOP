@@ -11,7 +11,7 @@ import uk.ac.bris.cs.scotlandyard.ai.PlayerFactory;
 import uk.ac.bris.cs.scotlandyard.model.*;
 
 
-@ManagedAI("Easy")
+@ManagedAI("mrX")
 public class MyAI implements PlayerFactory {
 
 	@Override
@@ -20,8 +20,13 @@ public class MyAI implements PlayerFactory {
 	}
 
 	private static class MyPlayer implements Player{
+		// Modifiable scalars
+		final int doubleBetterThanTicket = 1;
+		final int useDoubleMove = 3;
 
 		int moveDestination;
+		int firstMoveDestination;
+		Map<Move, Integer> ticketMoveScores = new HashMap<>();
 
 		// Copy the number of remained tickets from ScotlandYardView to a new Map<Ticket, Integer>
 		// for counting the remaining tickets in searching of least steps
@@ -31,11 +36,10 @@ public class MyAI implements PlayerFactory {
 			targetDetectiveTickets.put(Ticket.TAXI, view.getPlayerTickets(targetDetective, Ticket.TAXI).get());
 			targetDetectiveTickets.put(Ticket.BUS, view.getPlayerTickets(targetDetective, Ticket.BUS).get());
 			targetDetectiveTickets.put(Ticket.UNDERGROUND, view.getPlayerTickets(targetDetective, Ticket.UNDERGROUND).get());
-
 		}
 
 		// Start search from current node
-		public void startSearchingFrom (Node<Integer> currentNode,
+		private void startSearchingFrom (Node<Integer> currentNode,
 										Graph<Integer, Transport> graph,
 										Map<Ticket, Integer> targetDetectiveTickets,
 										HashMap<Node<Integer>, Integer> steps){
@@ -44,12 +48,12 @@ public class MyAI implements PlayerFactory {
 
 			for (Edge<Integer, Transport> possibleEdge : possibleEdges) {
 				if (targetDetectiveTickets.get(Ticket.fromTransport(possibleEdge.data())) != 0 &&
-						(currentNode.value() + 1 < steps.get(possibleEdge.destination()) ||
+						(steps.get(currentNode) + 1 < steps.get(possibleEdge.destination()) ||
 						steps.get(possibleEdge.destination()) == 0)){
 					// Create a new Map for tickets
 					Map<Ticket, Integer> targetDetectiveCURRENTTickets = targetDetectiveTickets;
 					// Set the value to n + 1
-					steps.replace(possibleEdge.destination(), currentNode.value() + 1);
+					steps.replace(possibleEdge.destination(), steps.get(currentNode) + 1);
 					// Decrease the consumed ticket
 					targetDetectiveCURRENTTickets.replace(Ticket.fromTransport(possibleEdge.data()),
 							targetDetectiveTickets.get(Ticket.fromTransport(possibleEdge.data())) - 1);
@@ -82,12 +86,14 @@ public class MyAI implements PlayerFactory {
 		private int totalLeastSteps (ScotlandYardView view, int moveDestination){
 			int totalLeastSteps = 0;
 			for (Colour player : view.getPlayers()){
-				totalLeastSteps = totalLeastSteps + Dijkstras(view, moveDestination, player);
+				if (Dijkstras(view, moveDestination, player) == 1) return 0;
+				else totalLeastSteps = totalLeastSteps + Dijkstras(view, moveDestination, player);
 			}
 			return totalLeastSteps;
 		}
 
 		private int score (ScotlandYardView view, Move move){
+			int furtherEdges = 0;
 			// Create MoveVisitors and override visit to get final destination for different moves
 			MoveVisitor ticketMoveVisitor = new MoveVisitor() {
 				@Override
@@ -98,40 +104,102 @@ public class MyAI implements PlayerFactory {
 			MoveVisitor doubleMoveVisitor = new MoveVisitor() {
 				@Override
 				public void visit(DoubleMove move) {
+					firstMoveDestination = move.firstMove().destination();
 					moveDestination = move.finalDestination();
 				}
 			};
-			if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
-			if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
-
-			int totalLeastSteps = totalLeastSteps(view, moveDestination);
-			// TODO furtherValidmoves is much better than furtherEdges
-			int furtherEdges = view.getGraph().getEdgesFrom(new Node<Integer> (moveDestination)).size();
-			int FengShui;
-			boolean thisRound = view.getRounds().get(view.getCurrentRound());
-			boolean nextRound = view.getRounds().get(view.getCurrentRound() + 1);
-			//Give the formula of score
-			//int score =...
-			return 0;
+			if (move.getClass().equals(TicketMove.class)) {
+				move.visit(ticketMoveVisitor);
+				if (view.getRounds().get(view.getCurrentRound() + 1)) furtherEdges = view.getGraph().getEdgesFrom(new Node<> (moveDestination)).size();
+			}
+			if (move.getClass().equals(DoubleMove.class)) {
+				move.visit(doubleMoveVisitor);
+				if (view.getRounds().get(view.getCurrentRound() + 1)) furtherEdges = view.getGraph().getEdgesFrom(new Node<> (firstMoveDestination)).size();
+				if (view.getRounds().get(view.getCurrentRound() + 2)) furtherEdges = view.getGraph().getEdgesFrom(new Node<> (moveDestination)).size();
+			}
+			return totalLeastSteps(view, moveDestination) + furtherEdges;
 		}
 
-		private ArrayList<Move> pickBestMoves (Map<Move, Integer> moveScores){
+		boolean moreThanOneDetectiveTwoStepsToMrX (ScotlandYardView view){
+			int counter = 0;
+			for (Colour player : view.getPlayers()){
+				if (player.isDetective() && Dijkstras(view, view.getPlayerLocation(Colour.BLACK).get(), view.getCurrentPlayer()) <= 2){
+					counter ++;
+				}
+			}
+			return counter > 1;
+		}
+
+		boolean detectiveWithinOneSteps (ScotlandYardView view){
+			int counter = 0;
+			for (Colour player : view.getPlayers()){
+				if (player.isDetective() && Dijkstras(view, view.getPlayerLocation(Colour.BLACK).get(), view.getCurrentPlayer()) <= 1){
+					counter ++;
+				}
+			}
+			return counter > 0;
+		}
+
+		private int getHighestScore (Map<Move, Integer> moveScores){
+			int highestScore = 0;
+			int scoreBefore = 0;
+			for (Integer score : moveScores.values()){
+				if (score > scoreBefore) highestScore = score;
+				scoreBefore = score;
+			}
+			return highestScore;
+		}
+
+		private ArrayList<Move> pickBestMoves (ScotlandYardView view,
+											   Map<Move, Integer> ticketMoveScores,
+											   Map<Move, Integer> doubleMoveScores){
 			ArrayList<Move> bestMoves = new ArrayList<>();
-			// TODO
-			return bestMoves;
+			final int doubleMoveLine = (view.getPlayers().size() - 1) * useDoubleMove;
+			int highestScoreInTicketMove = getHighestScore(ticketMoveScores);
+			int highestScoreInDoubleMove = getHighestScore(doubleMoveScores);
+			if ((highestScoreInTicketMove < doubleMoveLine
+					|| moreThanOneDetectiveTwoStepsToMrX(view)
+					|| detectiveWithinOneSteps(view)
+					|| highestScoreInDoubleMove - highestScoreInTicketMove > view.getPlayers().size() * doubleBetterThanTicket)
+					&& view.getPlayerTickets(Colour.BLACK, Ticket.DOUBLE).get() != 0){
+				for (Move move : doubleMoveScores.keySet())
+					if (ticketMoveScores.get(move).equals(highestScoreInDoubleMove))
+						bestMoves.add(move);
+				return bestMoves;
+			}
+			else {
+				for (Move move : ticketMoveScores.keySet())
+					if (ticketMoveScores.get(move).equals(highestScoreInTicketMove))
+						bestMoves.add(move);
+				return bestMoves;
+			}
 		}
 
 		@Override
 		public void makeMove(ScotlandYardView view, int location, Set<Move> moves,
 							 Consumer<Move> callback) {
-			Map<Move, Integer> moveScores = new HashMap<>();
 			ArrayList<Move> bestMoves;
 			Move theBestMove;
+			MoveVisitor ticketMoveVisitor = new MoveVisitor() {
+				@Override
+				public void visit(TicketMove move) {
+					ticketMoveScores.put(move, score(view, move));
+				}
+			};
+			MoveVisitor doubleMoveVisitor = new MoveVisitor() {
+				@Override
+				public void visit(DoubleMove move) {
+					doubleMoveScores.put(move, score(view, move));
+				}
+			};
 
-			// Get all the score of move and put in a Map
-			for (Move move : moves) moveScores.put(move, score(view, move));
+			for (Move move : moves) {
+				if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
+				if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
+			}
+
 			// Pick the best moves in a set by comparing the score
-			bestMoves = pickBestMoves(moveScores);
+			bestMoves = pickBestMoves(view, ticketMoveScores, doubleMoveScores);
 			// Plan A: Just pick one randomly as theBestMove
 			final Random random = new Random();
 			theBestMove = bestMoves.get(random.nextInt(bestMoves.size()));
