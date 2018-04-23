@@ -23,6 +23,7 @@ public class MyAI implements PlayerFactory {
 		// Modifiable scalars
 		final int doubleBetterThanTicket = 1;
 		final int useDoubleMove = 3;
+		final int secretMoveScalar = 1;
 
 		int moveDestination;
 		Ticket ticketMoveTicket;
@@ -97,7 +98,7 @@ public class MyAI implements PlayerFactory {
 		}
 
 		private int score (ScotlandYardView view, Move move){
-			int secretMoveWeight = -1;
+			int secretMoveWeight = -secretMoveScalar;
 			int furtherEdges = 0;
 			// Create MoveVisitors and override visit to get final destination for different moves
 			MoveVisitor ticketMoveVisitor = new MoveVisitor() {
@@ -134,7 +135,7 @@ public class MyAI implements PlayerFactory {
 							&& ticketMoveTicket.equals(Ticket.SECRET)
 							&& view.getPlayerLocation(Colour.BLACK).get().equals(edge.source().value())
 							&& moveDestination == edge.destination().value())
-						secretMoveWeight = 1;
+						secretMoveWeight = secretMoveScalar;
 					if (move.getClass().equals(DoubleMove.class) &&
 							((firstMoveTicket.equals(Ticket.SECRET)
 									&& view.getPlayerLocation(Colour.BLACK).get().equals(edge.source().value())
@@ -143,7 +144,7 @@ public class MyAI implements PlayerFactory {
 									&& firstMoveDestination == edge.source().value()
 									&& moveDestination == edge.destination().value())
 							))
-						secretMoveWeight = 1;
+						secretMoveWeight = secretMoveScalar;
 				}
 			}
 			return totalLeastSteps(view, moveDestination) + furtherEdges + secretMoveWeight;
