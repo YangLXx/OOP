@@ -39,9 +39,13 @@ public class MyAI implements PlayerFactory {
 		private void setTargetDetectiveTickets (ScotlandYardView view,
 								 Colour targetDetective,
 								 Map<Ticket, Integer> targetDetectiveTickets){
-			targetDetectiveTickets.put(Ticket.TAXI, view.getPlayerTickets(targetDetective, Ticket.TAXI).get());
-			targetDetectiveTickets.put(Ticket.BUS, view.getPlayerTickets(targetDetective, Ticket.BUS).get());
-			targetDetectiveTickets.put(Ticket.UNDERGROUND, view.getPlayerTickets(targetDetective, Ticket.UNDERGROUND).get());
+			if (view.getPlayerTickets(targetDetective, Ticket.TAXI).isPresent()
+					&& view.getPlayerTickets(targetDetective, Ticket.BUS).isPresent()
+					&& view.getPlayerTickets(targetDetective, Ticket.UNDERGROUND).isPresent()) {
+				targetDetectiveTickets.put(Ticket.TAXI, view.getPlayerTickets(targetDetective, Ticket.TAXI).get());
+				targetDetectiveTickets.put(Ticket.BUS, view.getPlayerTickets(targetDetective, Ticket.BUS).get());
+				targetDetectiveTickets.put(Ticket.UNDERGROUND, view.getPlayerTickets(targetDetective, Ticket.UNDERGROUND).get());
+			}
 		}
 
 		// Start search from current node
@@ -81,9 +85,9 @@ public class MyAI implements PlayerFactory {
 
 			// Locate the location of targetDetective and start searching from there
 			for (Node<Integer> node: steps.keySet()) {
-				if (node.equals(new Node<>(view.getPlayerLocation(targetDetective).get()))){
+				if (view.getPlayerLocation(targetDetective).isPresent()
+						&& node.equals(new Node<>(view.getPlayerLocation(targetDetective).get())))
 					startSearchingFrom(node, view.getGraph(), targetDetectiveTickets, steps);
-				}
 			}
 
 			return steps.get(new Node<>(destination));
@@ -134,11 +138,13 @@ public class MyAI implements PlayerFactory {
 				if (edge.data().equals(Transport.UNDERGROUND)) {
 					if (move.getClass().equals(TicketMove.class)
 							&& ticketMoveTicket.equals(Ticket.SECRET)
+							&& view.getPlayerLocation(Colour.BLACK).isPresent()
 							&& view.getPlayerLocation(Colour.BLACK).get().equals(edge.source().value())
 							&& moveDestination == edge.destination().value())
 						secretMoveWeight = secretMoveScalar;
 					if (move.getClass().equals(DoubleMove.class) &&
 							((firstMoveTicket.equals(Ticket.SECRET)
+									&& view.getPlayerLocation(Colour.BLACK).isPresent()
 									&& view.getPlayerLocation(Colour.BLACK).get().equals(edge.source().value())
 									&& firstMoveDestination == edge.destination().value())
 									|| (secondMoveTicket.equals(Ticket.SECRET)
@@ -154,9 +160,10 @@ public class MyAI implements PlayerFactory {
 		boolean moreThanOneDetectiveTwoStepsToMrX (ScotlandYardView view){
 			int counter = 0;
 			for (Colour player : view.getPlayers()){
-				if (player.isDetective() && Dijkstras(view, view.getPlayerLocation(Colour.BLACK).get(), view.getCurrentPlayer()) <= 2){
+				if (player.isDetective()
+						&& view.getPlayerLocation(Colour.BLACK).isPresent()
+						&& Dijkstras(view, view.getPlayerLocation(Colour.BLACK).get(), view.getCurrentPlayer()) <= 2)
 					counter ++;
-				}
 			}
 			return counter > 1;
 		}
@@ -164,9 +171,10 @@ public class MyAI implements PlayerFactory {
 		boolean detectiveWithinOneSteps (ScotlandYardView view){
 			int counter = 0;
 			for (Colour player : view.getPlayers()){
-				if (player.isDetective() && Dijkstras(view, view.getPlayerLocation(Colour.BLACK).get(), view.getCurrentPlayer()) <= 1){
+				if (player.isDetective()
+						&& view.getPlayerLocation(Colour.BLACK).isPresent()
+						&& Dijkstras(view, view.getPlayerLocation(Colour.BLACK).get(), view.getCurrentPlayer()) <= 1)
 					counter ++;
-				}
 			}
 			return counter > 0;
 		}
@@ -192,6 +200,7 @@ public class MyAI implements PlayerFactory {
 					|| moreThanOneDetectiveTwoStepsToMrX(view)
 					|| detectiveWithinOneSteps(view)
 					|| highestScoreInDoubleMove - highestScoreInTicketMove > view.getPlayers().size() * doubleBetterThanTicket)
+					&& view.getPlayerTickets(Colour.BLACK, Ticket.DOUBLE).isPresent()
 					&& view.getPlayerTickets(Colour.BLACK, Ticket.DOUBLE).get() != 0){
 				for (Move move : doubleMoveScores.keySet())
 					if (ticketMoveScores.get(move).equals(highestScoreInDoubleMove))
@@ -231,11 +240,9 @@ public class MyAI implements PlayerFactory {
 
 			// Pick the best moves in a set by comparing the score
 			bestMoves = pickBestMoves(view, ticketMoveScores, doubleMoveScores);
-			// Plan A: Just pick one randomly as theBestMove
+			// Pick one randomly as theBestMove
 			final Random random = new Random();
 			theBestMove = bestMoves.get(random.nextInt(bestMoves.size()));
-			// Plan B: Considering one more step or using another standard to choose theBestMove
-			// TODO
 			// callback
 			callback.accept(theBestMove);
 		}
