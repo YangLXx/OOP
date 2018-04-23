@@ -25,6 +25,9 @@ public class MyAI implements PlayerFactory {
 		final int useDoubleMove = 3;
 
 		int moveDestination;
+		Ticket ticketMoveTicket;
+		Ticket firstMoveTicket;
+		Ticket secondMoveTicket;
 		int firstMoveDestination;
 		Map<Move, Integer> ticketMoveScores = new HashMap<>();
 		Map<Move, Integer> doubleMoveScores = new HashMap<>();
@@ -94,12 +97,14 @@ public class MyAI implements PlayerFactory {
 		}
 
 		private int score (ScotlandYardView view, Move move){
+			int secretMoveWeight = -1;
 			int furtherEdges = 0;
 			// Create MoveVisitors and override visit to get final destination for different moves
 			MoveVisitor ticketMoveVisitor = new MoveVisitor() {
 				@Override
 				public void visit(TicketMove move) {
 					moveDestination = move.destination();
+					ticketMoveTicket = move.ticket();
 				}
 			};
 			MoveVisitor doubleMoveVisitor = new MoveVisitor() {
@@ -107,8 +112,12 @@ public class MyAI implements PlayerFactory {
 				public void visit(DoubleMove move) {
 					firstMoveDestination = move.firstMove().destination();
 					moveDestination = move.finalDestination();
+					firstMoveTicket = move.firstMove().ticket();
+					secondMoveTicket = move.secondMove().ticket();
 				}
 			};
+			// If the move round is revealed, the score of move should consider how many edges from move destination
+			// in order to confuse detectives
 			if (move.getClass().equals(TicketMove.class)) {
 				move.visit(ticketMoveVisitor);
 				if (view.getRounds().get(view.getCurrentRound() + 1)) furtherEdges = view.getGraph().getEdgesFrom(new Node<> (moveDestination)).size();
@@ -118,7 +127,26 @@ public class MyAI implements PlayerFactory {
 				if (view.getRounds().get(view.getCurrentRound() + 1)) furtherEdges = view.getGraph().getEdgesFrom(new Node<> (firstMoveDestination)).size();
 				if (view.getRounds().get(view.getCurrentRound() + 2)) furtherEdges = view.getGraph().getEdgesFrom(new Node<> (moveDestination)).size();
 			}
-			return totalLeastSteps(view, moveDestination) + furtherEdges;
+			// MrX will choose SECRET move if and only if when mrX is going to use UNDERGROUND ticket
+			for (Edge<Integer, Transport> edge : view.getGraph().getEdges()){
+				if (edge.data().equals(Transport.UNDERGROUND)) {
+					if (move.getClass().equals(TicketMove.class)
+							&& ticketMoveTicket.equals(Ticket.SECRET)
+							&& view.getPlayerLocation(Colour.BLACK).get().equals(edge.source().value())
+							&& moveDestination == edge.destination().value())
+						secretMoveWeight = 1;
+					if (move.getClass().equals(DoubleMove.class) &&
+							((firstMoveTicket.equals(Ticket.SECRET)
+									&& view.getPlayerLocation(Colour.BLACK).get().equals(edge.source().value())
+									&& firstMoveDestination == edge.destination().value())
+									|| (secondMoveTicket.equals(Ticket.SECRET)
+									&& firstMoveDestination == edge.source().value()
+									&& moveDestination == edge.destination().value())
+							))
+						secretMoveWeight = 1;
+				}
+			}
+			return totalLeastSteps(view, moveDestination) + furtherEdges + secretMoveWeight;
 		}
 
 		boolean moreThanOneDetectiveTwoStepsToMrX (ScotlandYardView view){
