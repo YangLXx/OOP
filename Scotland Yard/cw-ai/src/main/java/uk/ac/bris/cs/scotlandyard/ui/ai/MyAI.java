@@ -25,6 +25,7 @@ public class MyAI implements PlayerFactory {
 		final int useDoubleMove = 3;
 		final int secretMoveScalar = 1;
 
+		// Override methods using
 		int moveDestination;
 		Ticket ticketMoveTicket;
 		Ticket firstMoveTicket;
@@ -222,7 +223,7 @@ public class MyAI implements PlayerFactory {
 					doubleMoveScores.put(move, score(view, move));
 				}
 			};
-
+			// Split valid moves into two sets: single move and double move
 			for (Move move : moves) {
 				if (move.getClass().equals(TicketMove.class)) move.visit(ticketMoveVisitor);
 				if (move.getClass().equals(DoubleMove.class)) move.visit(doubleMoveVisitor);
