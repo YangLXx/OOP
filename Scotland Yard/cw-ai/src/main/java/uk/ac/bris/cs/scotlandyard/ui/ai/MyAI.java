@@ -3,6 +3,7 @@ package uk.ac.bris.cs.scotlandyard.ui.ai;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static java.util.Objects.requireNonNull;
 import uk.ac.bris.cs.gamekit.graph.Edge;
 import uk.ac.bris.cs.gamekit.graph.Graph;
 import uk.ac.bris.cs.gamekit.graph.Node;
@@ -55,20 +56,18 @@ public class MyAI implements PlayerFactory {
 										HashMap<Node<Integer>, Integer> steps){
 			// Get the possible edges from currentNode
 			Collection<Edge<Integer, Transport>> possibleEdges = new HashSet<>(graph.getEdgesFrom(currentNode));
-
+		    
 			for (Edge<Integer, Transport> possibleEdge : possibleEdges) {
 				if (targetDetectiveTickets.get(Ticket.fromTransport(possibleEdge.data())) != 0 &&
 						(steps.get(currentNode) + 1 < steps.get(possibleEdge.destination()) ||
 						steps.get(possibleEdge.destination()) == 0)){
-					// Create a new Map for tickets
-					Map<Ticket, Integer> targetDetectiveCURRENTTickets = targetDetectiveTickets;
 					// Set the value to n + 1
 					steps.replace(possibleEdge.destination(), steps.get(currentNode) + 1);
 					// Decrease the consumed ticket
-					targetDetectiveCURRENTTickets.replace(Ticket.fromTransport(possibleEdge.data()),
+					targetDetectiveTickets.replace(Ticket.fromTransport(possibleEdge.data()),
 							targetDetectiveTickets.get(Ticket.fromTransport(possibleEdge.data())) - 1);
 					// Start searching from next node
-					startSearchingFrom(possibleEdge.destination(), graph, targetDetectiveCURRENTTickets, steps);
+					startSearchingFrom(possibleEdge.destination(), graph, targetDetectiveTickets, steps);
 				}
 			}
 		}
